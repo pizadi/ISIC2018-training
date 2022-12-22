@@ -9,10 +9,10 @@ class ConvBlock(nn.Module):
         super(ConvBlock, self).__init__()
 
         self.conv = nn.Sequential(
-            nn.Conv2d(in_c, out_c, (3, 3), padding=same),
+            nn.Conv2d(in_c, out_c, (3, 3), padding="same"),
             nn.BatchNorm2d(out_c),
             nn.ReLU(),
-            nn.Conv2d(out_c, out_c, (3, 3), padding=same),
+            nn.Conv2d(out_c, out_c, (3, 3), padding="same"),
             nn.BatchNorm2d(out_c),
             nn.ReLU(),
             SEBlock(out_c)
@@ -25,7 +25,7 @@ class ConvBlock(nn.Module):
 
 class SEBlock(nn.Module):
     def __init__(self, in_channels, ratio=8):
-        super(squeeze_excitation_block).__init__()
+        super(SEBlock, self).__init__()
 
         self.fc = nn.Sequential(
             nn.Conv2d(in_channels, in_channels//ratio, (1, 1)),
@@ -36,7 +36,7 @@ class SEBlock(nn.Module):
 
 
     def forward(self, x):
-        y = torch.mean(x, (2, 3), keep_dims=True)
+        y = torch.mean(x, (2, 3), keepdim=True)
         y = self.fc(y)
         return x*y
 
@@ -77,7 +77,7 @@ class ASPP(nn.Module):
 
     def forward(self, X):
         
-        X1 = self.block_1(torch.mean(X, (2, 3), keep_dims=True))
+        X1 = self.block_1(torch.mean(X, (2, 3), keepdim=True))
         X1 = X1.repeat((1, 1, X.shape[2], X.shape[3]))
         X2 = self.block_2(X)
         X3 = self.block_3(X)
@@ -87,23 +87,23 @@ class ASPP(nn.Module):
         y = self.block(torch.cat([X1, X2, X3, X4, X5], dim=1))
         return y
 
-class conv_block(nn.Module):
-    def __init__(self, in_c, out_c):
-        super().__init__()
+# class conv_block(nn.Module):
+#     def __init__(self, in_c, out_c):
+#         super().__init__()
 
-        self.c1 = Conv2D(in_c, out_c)
-        self.c2 = Conv2D(out_c, out_c)
-        self.a1 = squeeze_excitation_block(out_c)
+#         self.c1 = Conv2D(in_c, out_c)
+#         self.c2 = Conv2D(out_c, out_c)
+#         self.a1 = squeeze_excitation_block(out_c)
 
-    def forward(self, x):
-        x = self.c1(x)
-        x = self.c2(x)
-        x = self.a1(x)
-        return x
+#     def forward(self, x):
+#         x = self.c1(x)
+#         x = self.c2(x)
+#         x = self.a1(x)
+#         return x
 
 class encoder1(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(encoder1, self).__init__()
 
         network = vgg19(pretrained=True)
 
@@ -126,7 +126,7 @@ class encoder1(nn.Module):
 
 class decoder1(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(decoder1, self).__init__()
 
         self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
         self.c1 = ConvBlock(64+512, 256)
@@ -137,29 +137,32 @@ class decoder1(nn.Module):
     def forward(self, X, skip):
         s1, s2, s3, s4 = skip
 
-        x = self.up(x)
-        x = torch.cat([x, s1], axis=1)
-        x = self.c1(x)
+        X = self.up(X)
+        X = torch.cat([X, s1], axis=1)
+        X = self.c1(X)
 
-        x = self.up(x)
-        x = torch.cat([x, s2], axis=1)
-        x = self.c2(x)
+        X = self.up(X)
+        X = torch.cat([X, s2], axis=1)
+        X = self.c2(X)
 
-        x = self.up(x)
-        x = torch.cat([x, s3], axis=1)
-        x = self.c3(x)
+        X = self.up(X)
+        X = torch.cat([X, s3], axis=1)
+        X = self.c3(X)
 
-        x = self.up(x)
-        x = torch.cat([x, s4], axis=1)
-        x = self.c4(x)
+        X = self.up(X)
+        X = torch.cat([X, s4], axis=1)
+        X = self.c4(X)
 
-        return x
+        return X
 
 class encoder2(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(encoder2, self).__init__()
 
-        self.pool = nn.MaxPool2d((2, 2))
+        self.pool1 = nn.MaxPool2d((2, 2))
+        self.pool2 = nn.MaxPool2d((2, 2))
+        self.pool3 = nn.MaxPool2d((2, 2))
+        self.pool4 = nn.MaxPool2d((2, 2))
 
         self.c1 = ConvBlock(3, 32)
         self.c2 = ConvBlock(32, 64)
@@ -170,44 +173,48 @@ class encoder2(nn.Module):
         x0 = x
 
         x1 = self.c1(x0)
-        p1 = self.pool(x1)
+        p1 = self.pool1(x1)
 
         x2 = self.c2(p1)
-        p2 = self.pool(x2)
+        p2 = self.pool2(x2)
 
         x3 = self.c3(p2)
-        p3 = self.pool(x3)
+        p3 = self.pool3(x3)
 
         x4 = self.c4(p3)
-        p4 = self.pool(x4)
+        p4 = self.pool4(x4)
 
         return p4, [x4, x3, x2, x1]
 
 class decoder2(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(decoder2, self).__init__()
 
-        self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
-        self.c1 = conv_block(832, 256)
-        self.c2 = conv_block(640, 128)
-        self.c3 = conv_block(320, 64)
-        self.c4 = conv_block(160, 32)
+        self.up1 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+        self.up2 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+        self.up3 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+        self.up4 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+
+        self.c1 = ConvBlock(832, 256)
+        self.c2 = ConvBlock(640, 128)
+        self.c3 = ConvBlock(320, 64)
+        self.c4 = ConvBlock(160, 32)
 
     def forward(self, x, skip1, skip2):
 
-        x = self.up(x)
+        x = self.up1(x)
         x = torch.cat([x, skip1[0], skip2[0]], axis=1)
         x = self.c1(x)
 
-        x = self.up(x)
+        x = self.up2(x)
         x = torch.cat([x, skip1[1], skip2[1]], axis=1)
         x = self.c2(x)
 
-        x = self.up(x)
+        x = self.up3(x)
         x = torch.cat([x, skip1[2], skip2[2]], axis=1)
         x = self.c3(x)
 
-        x = self.up(x)
+        x = self.up4(x)
         x = torch.cat([x, skip1[3], skip2[3]], axis=1)
         x = self.c4(x)
 
@@ -215,7 +222,7 @@ class decoder2(nn.Module):
 
 class DoubleUNet(BaseModel):
   def __init__(self, learning_rate=None,  loss_fn=None, optimizer=None, device=None):
-    super().__init__()
+    super(DoubleUNet, self).__init__()
 
     if (device is None):
       self.device = "cuda" if torch.cuda.is_available() else "cpu"
