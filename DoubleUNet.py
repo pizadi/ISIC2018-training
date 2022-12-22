@@ -4,77 +4,87 @@ import torch.nn.functional as F
 from torchvision.models import vgg19
 from BaseModel import BaseModel
 
-class Conv2D(nn.Module):
-    def __init__(self, in_c, out_c, kernel_size=3, padding=1, dilation=1, bias=False, act=True):
-        super().__init__()
-        self.act = act
+class ConvBlock(nn.Module):
+    def __init__(self, in_c, out_c):
+        super(ConvBlock, self).__init__()
 
         self.conv = nn.Sequential(
-            nn.Conv2d(
-                in_c, out_c,
-                kernel_size=kernel_size,
-                padding=padding,
-                dilation=dilation,
-                bias=bias
-            ),
-            nn.BatchNorm2d(out_c)
+            nn.Conv2d(in_c, out_c, (3, 3), padding=same),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(),
+            nn.Conv2d(out_c, out_c, (3, 3), padding=same),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(),
+            SEBlock(out_c)
         )
-        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
         x = self.conv(x)
-        if self.act == True:
-            x = self.relu(x)
         return x
 
 
-class squeeze_excitation_block(nn.Module):
+class SEBlock(nn.Module):
     def __init__(self, in_channels, ratio=8):
-        super().__init__()
+        super(squeeze_excitation_block).__init__()
 
-        self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-            nn.Linear(in_channels, in_channels//ratio),
+            nn.Conv2d(in_channels, in_channels//ratio, (1, 1)),
             nn.ReLU(inplace=True),
-            nn.Linear(in_channels//ratio, in_channels),
+            nn.Conv2d(in_channels//ratio, in_channels, (1, 1)),
             nn.Sigmoid()
         )
 
 
     def forward(self, x):
-        batch_size, channel_size, _, _ = x.size()
-        y = self.avgpool(x).view(batch_size, channel_size)
-        y = self.fc(y).view(batch_size, channel_size, 1, 1)
-        return x*y.expand_as(x)
+        y = torch.mean(x, (2, 3), keep_dims=True)
+        y = self.fc(y)
+        return x*y
 
 class ASPP(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
+        
+        self.block_1 = nn.Sequential(
+                nn.Conv2d(in_c, out_c, (1, 1)),
+                nn.BatchNorm2d(out_c),
+                nn.ReLU())
 
-        self.avgpool = nn.Sequential(
-            nn.AdaptiveAvgPool2d((2, 2)),
-            Conv2D(in_c, out_c, kernel_size=1, padding=0)
-        )
+        self.block_2 = nn.Sequential(
+                nn.Conv2d(in_c, out_c, (1, 1), bias=False),
+                nn.BatchNorm2d(out_c),
+                nn.ReLU())
+        
+        self.block_3 = nn.Sequential(
+                nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=6, bias=False),
+                nn.BatchNorm2d(out_c),
+                nn.ReLU())
 
-        self.c1 = Conv2D(in_c, out_c, kernel_size=1, padding=0, dilation=1)
-        self.c2 = Conv2D(in_c, out_c, kernel_size=3, padding=6, dilation=6)
-        self.c3 = Conv2D(in_c, out_c, kernel_size=3, padding=12, dilation=12)
-        self.c4 = Conv2D(in_c, out_c, kernel_size=3, padding=18, dilation=18)
+        self.block_4 = nn.Sequential(
+                nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=12, bias=False),
+                nn.BatchNorm2d(out_c),
+                nn.ReLU())
 
-        self.c5 = Conv2D(out_c*5, out_c, kernel_size=1, padding=0, dilation=1)
+        self.block_5 = nn.Sequential(
+                nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=18, bias=False),
+                nn.BatchNorm2d(out_c),
+                nn.ReLU())
 
-    def forward(self, x):
-        x0 = self.avgpool(x)
-        x0 = F.interpolate(x0, size=x.size()[2:], mode="bilinear", align_corners=True)
+        self.block = nn.Sequential(
+                nn.Conv2d(5*out_c, out_c, (1, 1), bias=False),
+                nn.BatchNorm2d(out_c),
+                nn.ReLU())
+        
 
-        x1 = self.c1(x)
-        x2 = self.c2(x)
-        x3 = self.c3(x)
-        x4 = self.c4(x)
-
-        xc = torch.cat([x0, x1, x2, x3, x4], axis=1)
-        y = self.c5(xc)
-
+    def forward(self, X):
+        
+        X1 = self.block_1(torch.mean(X, (2, 3), keep_dims=True))
+        X1 = X1.repeat((1, 1, X.shape[2], X.shape[3]))
+        X2 = self.block_2(X)
+        X3 = self.block_3(X)
+        X4 = self.block_4(X)
+        X5 = self.block_5(X)
+        
+        y = self.block(torch.cat([X1, X2, X3, X4, X5], dim=1))
         return y
 
 class conv_block(nn.Module):
@@ -106,9 +116,8 @@ class encoder1(nn.Module):
         self.x4 = network.features[18:27]
         self.x5 = network.features[27:36]
 
-    def forward(self, x):
-        x0 = x
-        x1 = self.x1(x0)
+    def forward(self, X):
+        x1 = self.x1(X)
         x2 = self.x2(x1)
         x3 = self.x3(x2)
         x4 = self.x4(x3)
@@ -120,12 +129,12 @@ class decoder1(nn.Module):
         super().__init__()
 
         self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
-        self.c1 = conv_block(64+512, 256)
-        self.c2 = conv_block(512, 128)
-        self.c3 = conv_block(256, 64)
-        self.c4 = conv_block(128, 32)
+        self.c1 = ConvBlock(64+512, 256)
+        self.c2 = ConvBlock(512, 128)
+        self.c3 = ConvBlock(256, 64)
+        self.c4 = ConvBlock(128, 32)
 
-    def forward(self, x, skip):
+    def forward(self, X, skip):
         s1, s2, s3, s4 = skip
 
         x = self.up(x)
@@ -152,10 +161,10 @@ class encoder2(nn.Module):
 
         self.pool = nn.MaxPool2d((2, 2))
 
-        self.c1 = conv_block(3, 32)
-        self.c2 = conv_block(32, 64)
-        self.c3 = conv_block(64, 128)
-        self.c4 = conv_block(128, 256)
+        self.c1 = ConvBlock(3, 32)
+        self.c2 = ConvBlock(32, 64)
+        self.c3 = ConvBlock(64, 128)
+        self.c4 = ConvBlock(128, 256)
 
     def forward(self, x):
         x0 = x
@@ -242,18 +251,18 @@ class DoubleUNet(BaseModel):
 
     self = self.to(self.device)
 
-  def forward(self, x):
-    x = x.to(self.device)
-    x0 = x
-    x, skip1 = self.e1(x)
-    x = self.a1(x)
-    x = self.d1(x, skip1)
-    y1 = self.y1(x)
+  def forward(self, X):
+    X = X.to(self.device)
+    x0 = X
+    X, skip1 = self.e1(X)
+    X = self.a1(X)
+    X = self.d1(X, skip1)
+    y1 = self.y1(X)
 
     input_x = x0 * self.sigmoid(y1)
-    x, skip2 = self.e2(input_x)
-    x = self.a2(x)
-    x = self.d2(x, skip1, skip2)
-    y2 = self.y2(x)
+    X, skip2 = self.e2(input_x)
+    X = self.a2(X)
+    X = self.d2(X, skip1, skip2)
+    y2 = self.y2(X)
 
     return y2
