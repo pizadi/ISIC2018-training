@@ -87,20 +87,6 @@ class ASPP(nn.Module):
         y = self.block(torch.cat([X1, X2, X3, X4, X5], dim=1))
         return y
 
-# class conv_block(nn.Module):
-#     def __init__(self, in_c, out_c):
-#         super().__init__()
-
-#         self.c1 = Conv2D(in_c, out_c)
-#         self.c2 = Conv2D(out_c, out_c)
-#         self.a1 = squeeze_excitation_block(out_c)
-
-#     def forward(self, x):
-#         x = self.c1(x)
-#         x = self.c2(x)
-#         x = self.a1(x)
-#         return x
-
 class encoder1(nn.Module):
     def __init__(self):
         super(encoder1, self).__init__()
@@ -217,7 +203,7 @@ class decoder2(nn.Module):
 
         return x
 
-class DoubleUNet(BaseModel):
+class DoubleUNet(nn.Module):
   def __init__(self, learning_rate=None,  loss_fn=None, optimizer=None, device=None):
     super(DoubleUNet, self).__init__()
 
@@ -264,7 +250,7 @@ class DoubleUNet(BaseModel):
     X, skip1 = self.e1(X)
     X = self.a1(X)
     X = self.d1(X, skip1)
-    y1 = self.y1(X)
+    y1 = torch.sigmoid(self.y1(X))
 
     input_x = x0 * self.sigmoid(y1)
     X, skip2 = self.e2(input_x)
@@ -272,4 +258,36 @@ class DoubleUNet(BaseModel):
     X = self.d2(X, skip1, skip2)
     y2 = torch.sigmoid(self.y2(X))
 
-    return y2
+    return y1, y2
+
+  def fit(self, X, y):
+    X, y = X.to(self.device), y.to(self.device)
+    torch.cuda.empty_cache()
+    pred1, pred2 = self(X)
+    self.optimizer.zero_grad()
+    loss = self.loss_fn(pred1, y) + self.loss_fn(pred2, y)
+    loss.backward()
+    self.optimizer.step()
+    pred1, X = None, None
+    torch.cuda.empty_cache()
+    y = (y > 0.5)
+    pred2 = (pred2 > 0.5)
+    numt = torch.numel(y[0])
+    TP = torch.sum(torch.bitwise_and(y, pred2)).item() / numt
+    TN = torch.sum(torch.bitwise_not(torch.bitwise_or(y, pred2))).item() / numt
+    FN = torch.sum(torch.bitwise_and(y, torch.bitwise_not(pred2))).item() / numt
+    FP = torch.sum(torch.bitwise_and(torch.bitwise_not(y), pred2)).item() / numt
+    return (loss.item(), torch.tensor([TP, FP, FN, TN]))
+
+  def test(self, X, y):
+      X, y = X.to(self.device), y.to(self.device)
+      pred1, pred2 = self(X)
+      loss = self.loss_fn(pred1, y) + self.loss_fn(pred2, y)
+      y = (y > 0.5)
+      pred2 = (pred2 > 0.5)
+      numt = torch.numel(y[0])
+      TP = torch.sum(torch.bitwise_and(y, pred2)).item() / numt
+      TN = torch.sum(torch.bitwise_not(torch.bitwise_or(y, pred2))).item() / numt
+      FN = torch.sum(torch.bitwise_and(y, torch.bitwise_not(pred2))).item() / numt
+      FP = torch.sum(torch.bitwise_and(torch.bitwise_not(y), pred2)).item() / numt
+      return (loss.item(), torch.tensor([TP, FP, FN, TN]))
