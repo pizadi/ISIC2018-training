@@ -107,21 +107,18 @@ class encoder1(nn.Module):
 
         network = vgg19(pretrained=True)
 
-        for param in network.parameters():
-          param.requires_grad = False
-
-        self.x1 = network.features[:4]
-        self.x2 = network.features[4:9]
-        self.x3 = network.features[9:18]
-        self.x4 = network.features[18:27]
-        self.x5 = network.features[27:36]
+        self.b1 = network.features[:4]
+        self.b2 = network.features[4:9]
+        self.b3 = network.features[9:18]
+        self.b4 = network.features[18:27]
+        self.b5 = network.features[27:36]
 
     def forward(self, X):
-        x1 = self.x1(X)
-        x2 = self.x2(x1)
-        x3 = self.x3(x2)
-        x4 = self.x4(x3)
-        x5 = self.x5(x4)
+        x1 = self.b1(X) 
+        x2 = self.b2(x1)
+        x3 = self.b3(x2)
+        x4 = self.b4(x3)
+        x5 = self.b5(x4)
         return x5, [x4, x3, x2, x1]
 
 class decoder1(nn.Module):
@@ -246,6 +243,9 @@ class DoubleUNet(BaseModel):
     self.d2 = decoder2()
     self.y2 = nn.Conv2d(32, 1, kernel_size=1, padding=0)
 
+    for param in self.e1.parameters():
+      param.requires_grad = False
+
     if (loss_fn is None):
       self.loss_fn = nn.BCELoss()
     else:
@@ -270,6 +270,6 @@ class DoubleUNet(BaseModel):
     X, skip2 = self.e2(input_x)
     X = self.a2(X)
     X = self.d2(X, skip1, skip2)
-    y2 = self.y2(X)
+    y2 = torch.sigmoid(self.y2(X))
 
     return y2
