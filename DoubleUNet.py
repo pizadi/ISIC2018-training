@@ -244,7 +244,7 @@ class DoubleUNet(BaseModel):
     self.y2 = nn.Conv2d(32, 1, kernel_size=1, padding=0)
 
     for param in self.e1.parameters():
-      param.requires_grad = False
+      param.requires_grad_(False)
 
     if (loss_fn is None):
       self.loss_fn = nn.BCELoss()
