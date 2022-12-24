@@ -1,3 +1,9 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision
+from BaseModel import BaseModel
+
 class UNetRes50(BaseModel):
     def __init__(self, learning_rate=None,  loss_fn=None, optimizer=None, device=None):
         super(UNetRes50, self).__init__()
