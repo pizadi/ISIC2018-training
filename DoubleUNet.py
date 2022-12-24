@@ -45,38 +45,38 @@ class ASPP(nn.Module):
         super().__init__()
         
         self.block_1 = nn.Sequential(
-                nn.Conv2d(in_c, out_c, (1, 1)),
-                nn.BatchNorm2d(out_c),
-                nn.ReLU())
+            nn.Conv2d(in_c, out_c, (1, 1)),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU())
 
         self.block_2 = nn.Sequential(
-                nn.Conv2d(in_c, out_c, (1, 1), bias=False),
-                nn.BatchNorm2d(out_c),
-                nn.ReLU())
+            nn.Conv2d(in_c, out_c, (1, 1), bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU())
         
         self.block_3 = nn.Sequential(
-                nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=6, bias=False),
-                nn.BatchNorm2d(out_c),
-                nn.ReLU())
+            nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=6, bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU())
 
         self.block_4 = nn.Sequential(
-                nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=12, bias=False),
-                nn.BatchNorm2d(out_c),
-                nn.ReLU())
+            nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=12, bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU())
 
         self.block_5 = nn.Sequential(
-                nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=18, bias=False),
-                nn.BatchNorm2d(out_c),
-                nn.ReLU())
+            nn.Conv2d(in_c, out_c, (3, 3), padding="same", dilation=18, bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU())
 
         self.block = nn.Sequential(
-                nn.Conv2d(5*out_c, out_c, (1, 1), bias=False),
-                nn.BatchNorm2d(out_c),
-                nn.ReLU())
+            nn.Conv2d(5*out_c, out_c, (1, 1), bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU())
         
 
     def forward(self, X):
-        
+        X = X.to(self.device)
         X1 = self.block_1(torch.mean(X, (2, 3), keepdim=True))
         X1 = X1.repeat((1, 1, X.shape[2], X.shape[3]))
         X2 = self.block_2(X)
