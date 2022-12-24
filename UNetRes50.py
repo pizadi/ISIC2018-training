@@ -24,16 +24,16 @@ class UNetRes50(BaseModel):
         self.e3 = nn.Sequential(resnet50._modules['layer2'])
         self.e4 = nn.Sequential(resnet50._modules['layer3'])
         
-        for param in e1.parameters():
+        for param in self.e1.parameters():
             param.requires_grad_(False)
             
-        for param in e2.parameters():
+        for param in self.e2.parameters():
             param.requires_grad_(False)
             
-        for param in e3.parameters():
+        for param in self.e3.parameters():
             param.requires_grad_(False)
             
-        for param in e4.parameters():
+        for param in self.e4.parameters():
             param.requires_grad_(False)
         
         self.c1 = self.convblock(1024, 512)
