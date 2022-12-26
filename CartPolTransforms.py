@@ -29,3 +29,17 @@ def cart2pol(img, center):
     return torch.tensor(polar_image)[None,:,:]
   else:
     return torch.tensor(polar_image).transpose(0,1).transpose(1,2)
+
+def pol2cart(img, center):
+  if img.shape[0] == 1:
+    input_img = img[0,:,:].numpy()
+  else:
+    input_img = img.transpose(0,1).transpose(1,2).numpy()
+  input_img = cv.rotate(input_img, cv.ROTATE_90_CLOCKWISE)
+  value = np.sqrt(((input_img.shape[1]/2.0)**2.0)+((input_img.shape[0]/2.0)**2.0))
+  cartesian_image = cv.linearPolar(input_img, center, value, cv.WARP_FILL_OUTLIERS + cv.WARP_INVERSE_MAP)
+  cartesian_image = cartesian_image.astype(np.uint8)
+  if img.shape[0] == 1:
+    return torch.tensor(cartesian_image)[None,:,:]
+  else:
+    return torch.tensor(cartesian_image).transpose(0,1).transpose(1,2)
