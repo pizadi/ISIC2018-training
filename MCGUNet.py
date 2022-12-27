@@ -66,22 +66,28 @@ class BCDUnetD3(BaseModel):
 
         self.block1 = nn.Sequential(    
             nn.Conv2d(3, 64, (3, 3), padding="same"),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Conv2d(64, 64, (3, 3), padding="same"),
+            nn.BatchNorm2d(64),
             nn.ReLU())
 
         self.block2 = nn.Sequential(
             nn.MaxPool2d((2, 2), stride=(2, 2)),
             nn.Conv2d(64, 128, (3, 3), padding="same"),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.Conv2d(128, 128, (3, 3), padding="same"),
+            nn.BatchNorm2d(128),
             nn.ReLU())
 
         self.block3 = nn.Sequential(
             nn.MaxPool2d((2, 2), stride=(2, 2)),
             nn.Conv2d(128, 256, (3, 3), padding="same"),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.Conv2d(256, 256, (3, 3), padding="same"),
+            nn.BatchNorm2d(256),
             nn.ReLU())
         
         self.drop3 = nn.Dropout(0.5)
@@ -90,24 +96,30 @@ class BCDUnetD3(BaseModel):
         #D1
         self.block4 = nn.Sequential(
             nn.Conv2d(256, 512, (3, 3), padding="same"),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.Conv2d(512, 512, (3, 3), padding="same"),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.Dropout(0.5))
 
         #D2
         self.block5 = nn.Sequential(
             nn.Conv2d(512, 512, (3, 3), padding="same"),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.Conv2d(512, 512, (3, 3), padding="same"),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.Dropout(0.5))
 
         #D3
         self.block6 = nn.Sequential(
             nn.Conv2d(1024, 512, (3, 3), padding="same"),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.Conv2d(512, 512, (3, 3), padding="same"),
+            nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.Dropout(0.5))
 
@@ -119,8 +131,10 @@ class BCDUnetD3(BaseModel):
         self.block7 = nn.Sequential(
             SeqConvLSTM2d(256, 128, (3, 3)),
             nn.Conv2d(128, 256, (3, 3), padding="same"),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.Conv2d(256, 256, (3, 3), padding="same"),
+            nn.BatchNorm2d(256),
             nn.ReLU())
 
         self.up8 = nn.Sequential(
@@ -131,8 +145,10 @@ class BCDUnetD3(BaseModel):
         self.block8 = nn.Sequential(
             SeqConvLSTM2d(128, 64, (3, 3)),
             nn.Conv2d(64, 128, (3, 3), padding="same"),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.Conv2d(128, 128, (3, 3), padding="same"),
+            nn.BatchNorm2d(128),
             nn.ReLU())
 
         self.up9 = nn.Sequential(
@@ -143,8 +159,10 @@ class BCDUnetD3(BaseModel):
         self.block9 = nn.Sequential(
             SeqConvLSTM2d(64, 32, (3, 3)),
             nn.Conv2d(32, 64, (3, 3), padding="same"),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Conv2d(64, 64, (3, 3), padding="same"),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Conv2d(64, 2, (3, 3), padding="same"),
             nn.ReLU(),
