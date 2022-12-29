@@ -1,5 +1,6 @@
 import torch
 from torch import nn as nn
+from torch import sqrt, pow
 import torchvision
 
 class BaseModel(nn.Module):
@@ -9,7 +10,9 @@ class BaseModel(nn.Module):
         torch.cuda.empty_cache()
         pred = self(X)
         self.optimizer.zero_grad()
-        loss = self.loss_fn(pred, y)
+        loss1 = self.loss_fn(pred*y, y)
+        loss2 = self.loss_fn(pred*(1-y), 1-y)
+        loss = sqrt(pow(loss1, 2) + pow(loss2, 2))
         loss.backward()
         self.optimizer.step()
         loss = loss.item()
@@ -25,7 +28,9 @@ class BaseModel(nn.Module):
     def test(self, X, y):
         X, y = X.to(self.device), y.to(self.device)
         pred = self(X)
-        loss = self.loss_fn(pred, y).item()
+        loss1 = self.loss_fn(pred*y, y)
+        loss2 = self.loss_fn(pred*(1-y), 1-y)
+        loss = sqrt(pow(loss1, 2) + pow(loss2, 2)).item()
         y = (y > 0.5)
         pred = (pred > 0.5)
         numt = torch.numel(y[0])
