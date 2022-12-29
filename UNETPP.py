@@ -82,11 +82,6 @@ class UNetPP(nn.Module):
         block = block.to(self.device)
         return block
 
-  def decblock(self, in_features, out_features):
-      block = nn.Sequential(
-          nn.ConvTranspose2d(in_features, out_features, 2, stride=(2, 2)),,
-            nn.MaxPool2d((2, 2))
-
     def forward(self, X):
         X = X.to(self.device)
         X = self.input(X)
