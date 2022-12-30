@@ -136,10 +136,10 @@ class UNetPP(nn.Module):
         pred1, pred2, pred3, pred4 = self(X)
         loss = self.loss_fn(pred1, y) + self.loss_fn(pred2, y) + self.loss_fn(pred3, y) + self.loss_fn(pred4, y)
         y = (y > 0.5)
-        pred = (pred > 0.5)
+        pred = (pred4 > 0.5)
         numt = torch.numel(y[0])
         TP = torch.sum(torch.bitwise_and(y, pred)).item() / numt
         TN = torch.sum(torch.bitwise_not(torch.bitwise_or(y, pred))).item() / numt
         FN = torch.sum(torch.bitwise_and(y, torch.bitwise_not(pred))).item() / numt
         FP = torch.sum(torch.bitwise_and(torch.bitwise_not(y), pred)).item() / numt
-        return (loss, torch.tensor([TP, FP, FN, TN]))
+        return (loss.item(), torch.tensor([TP, FP, FN, TN]))
