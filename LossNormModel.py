@@ -3,17 +3,17 @@ from torch import nn as nn
 from torch import sqrt, pow
 import torchvision
 
-class BaseModel(nn.Module):
+class LossNormModel(nn.Module):
   
     def fit(self, X, y):
         X, y = X.to(self.device), y.to(self.device)
         torch.cuda.empty_cache()
         pred = self(X)
         self.optimizer.zero_grad()
-        t = torch.numel(y)/torch.sum(y)
-        loss1 = self.loss_fn(pred*y, y)*t
-        loss2 = self.loss_fn(pred*(1-y), 1-y)*(1-t)
-        loss = sqrt(pow(loss1, 2) + pow(loss2, 2))
+        t = torch.sum(y)/torch.numel(y)
+        loss1 = self.loss_fn(pred*y, y)/t
+        loss2 = self.loss_fn(pred*(1-y), 1-y)/(1-t)
+        loss = loss1 + loss2
         loss.backward()
         self.optimizer.step()
         loss = loss.item()
@@ -29,10 +29,10 @@ class BaseModel(nn.Module):
     def test(self, X, y):
         X, y = X.to(self.device), y.to(self.device)
         pred = self(X)
-        t = torch.numel(y)/torch.sum(y)
-        loss1 = self.loss_fn(pred*y, y)*t
-        loss2 = self.loss_fn(pred*(1-y), 1-y)*(1-t)
-        loss = sqrt(pow(loss1, 2) + pow(loss2, 2)).item()
+        t = torch.sum(y)/torch.numel(y)
+        loss1 = self.loss_fn(pred*y, y)/t
+        loss2 = self.loss_fn(pred*(1-y), 1-y)/(1-t)
+        loss = loss1 + loss2
         y = (y > 0.5)
         pred = (pred > 0.5)
         numt = torch.numel(y[0])
