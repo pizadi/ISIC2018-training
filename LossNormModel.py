@@ -12,7 +12,7 @@ class LossNormModel(nn.Module):
         self.optimizer.zero_grad()
         t = torch.sum(y)/torch.numel(y)
         loss1 = self.loss_fn(pred*y, y)/t
-        loss2 = self.loss_fn(pred*(1-y), 1-y)/(1-t)
+        loss2 = self.loss_fn(pred*(1-y), y)/(1-t)
         loss = loss1 + loss2
         loss.backward()
         self.optimizer.step()
@@ -31,7 +31,7 @@ class LossNormModel(nn.Module):
         pred = self(X)
         t = torch.sum(y)/torch.numel(y)
         loss1 = self.loss_fn(pred*y, y)/t
-        loss2 = self.loss_fn(pred*(1-y), 1-y)/(1-t)
+        loss2 = self.loss_fn(pred*(1-y), y)/(1-t)
         loss = loss1 + loss2
         y = (y > 0.5)
         pred = (pred > 0.5)
