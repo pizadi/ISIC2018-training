@@ -5,7 +5,7 @@ import torchvision
 from LossNormModel import LossNormModel
 
 class UNetRes50(LossNormModel):
-    def __init__(self, learning_rate=None,  loss_fn=None, optimizer=None, device=None):
+    def __init__(self, learning_rate=None,  loss_fn=None, optimizer=None, device=None, maskthres=None):
         super(UNetRes50, self).__init__()
 
         if (device is None):
@@ -45,6 +45,11 @@ class UNetRes50(LossNormModel):
             self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         else:
             self.optimizer = optimizer(self.parameters(), lr=self.learning_rate)
+        
+        if (maskthres is None):
+            self.maskthres = .05
+        else:
+            self.maskthres = maskthres
 
 
         self = self.to(self.device)
@@ -78,6 +83,8 @@ class UNetRes50(LossNormModel):
     def forward(self, X):
         X = X.to(self.device)
 
+        mask = (torch.mean(X, dim=1, keepdim=True) > self.maskthres).float()
+
         s1 = self.e1(X)
         s2 = self.e2(s1)
         s3 = self.e3(s2)
@@ -100,5 +107,7 @@ class UNetRes50(LossNormModel):
         s1 = None
 
         X = torch.sigmoid(self.out(X))
+
+        X = X*mask
 
         return X
