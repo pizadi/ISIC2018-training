@@ -5,7 +5,7 @@ import torchvision
 from LossNormModel import LossNormModel
 
 class UNetRes50(LossNormModel):
-    def __init__(self, learning_rate=None,  loss_fn=None, optimizer=None, device=None, maskthres=None):
+    def __init__(self, learning_rate=None,  loss_fn=None, optimizer=None, device=None):
         super(UNetRes50, self).__init__()
 
         if (device is None):
@@ -14,9 +14,14 @@ class UNetRes50(LossNormModel):
             self.device = device
 
         if (learning_rate is None):
-            self.learning_rate = LEARNING_RATE
+            self.learning_rate = 1e-5
         else:
             self.learning_rate = learning_rate
+        
+        if (weight_decay is None):
+            self.weight_decay = 1e-5
+        else:
+            self.weight_decay = weight_decay
 
         resnet50 = torchvision.models.resnet50(weights="DEFAULT")
         self.e1 = nn.Sequential(resnet50._modules['conv1'], resnet50._modules['bn1'], resnet50._modules['relu'])
@@ -42,14 +47,9 @@ class UNetRes50(LossNormModel):
             self.loss_fn = loss_fn
 
         if (optimizer is None):
-            self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+            self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         else:
-            self.optimizer = optimizer(self.parameters(), lr=self.learning_rate)
-        
-        if (maskthres is None):
-            self.maskthres = .05
-        else:
-            self.maskthres = maskthres
+            self.optimizer = optimizer(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
 
         self = self.to(self.device)
@@ -83,8 +83,6 @@ class UNetRes50(LossNormModel):
     def forward(self, X):
         X = X.to(self.device)
 
-        mask = (torch.mean(X, dim=1, keepdim=True) > self.maskthres).float()
-
         s1 = self.e1(X)
         s2 = self.e2(s1)
         s3 = self.e3(s2)
@@ -107,7 +105,5 @@ class UNetRes50(LossNormModel):
         s1 = None
 
         X = torch.sigmoid(self.out(X))
-
-        X = X*mask
 
         return X
